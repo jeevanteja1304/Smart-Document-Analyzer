@@ -63,14 +63,27 @@ header {visibility: hidden;}
     font-size: 18px;
 }
 
-/* AI Cards */
+/* AI BOX */
 .ai-box {
-    background: rgba(17, 24, 39, 0.9);
+    background: rgba(17, 24, 39, 0.95);
     border: 1px solid #374151;
     border-radius: 18px;
     padding: 25px;
     margin-top: 20px;
-    box-shadow: 0px 0px 20px rgba(0,0,0,0.3);
+    margin-bottom: 20px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* CONTENT INSIDE BOX */
+.ai-content {
+    color: white;
+    font-size: 18px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 /* Input Box */
@@ -102,15 +115,17 @@ header {visibility: hidden;}
 
 # ---------------- HEADER ---------------- #
 
-st.markdown(
-    '<div class="main-title">📄 Smart Document Analyzer</div>',
-    unsafe_allow_html=True
-)
+st.markdown("""
+<div class="main-title">
+📄 Smart Document Analyzer
+</div>
+""", unsafe_allow_html=True)
 
-st.markdown(
-    '<div class="sub-title">Advanced AI-Powered Multi-Document RAG Assistant</div>',
-    unsafe_allow_html=True
-)
+st.markdown("""
+<div class="sub-title">
+Advanced AI-Powered Multi-Document RAG Assistant
+</div>
+""", unsafe_allow_html=True)
 
 # ---------------- SIDEBAR ---------------- #
 
@@ -139,7 +154,6 @@ if uploaded_file is not None:
 
     # Create folders
     os.makedirs("data", exist_ok=True)
-    os.makedirs("vectorstore", exist_ok=True)
 
     # Save uploaded file
     file_path = os.path.join(
@@ -152,7 +166,8 @@ if uploaded_file is not None:
 
     st.success("✅ File Uploaded Successfully!")
 
-    # File Details
+    # ---------------- FILE DETAILS ---------------- #
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -167,11 +182,11 @@ if uploaded_file is not None:
             f"{round(uploaded_file.size / 1024, 2)} KB"
         )
 
-    # ---------------- READ FILE ---------------- #
+    # ---------------- EXTRACT TEXT ---------------- #
 
     extracted_text = ""
 
-    with st.spinner("📚 AI is analyzing the document..."):
+    with st.spinner("📚  analyzing the document..."):
 
         file_extension = uploaded_file.name.split(".")[-1].lower()
 
@@ -209,7 +224,8 @@ if uploaded_file is not None:
 
             extracted_text = df.to_string()
 
-        # Split Text
+        # ---------------- TEXT SPLITTING ---------------- #
+
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=1200,
             chunk_overlap=250
@@ -219,19 +235,17 @@ if uploaded_file is not None:
             [extracted_text]
         )
 
-        # Embeddings
+        # ---------------- EMBEDDINGS ---------------- #
+
         embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
 
-        # Vector Database
+        # ---------------- VECTOR DATABASE ---------------- #
+
         vectorstore = FAISS.from_documents(
             docs,
             embeddings
-        )
-
-        vectorstore.save_local(
-            "vectorstore"
         )
 
     st.success("✅ Document Processed Successfully!")
@@ -247,27 +261,29 @@ if uploaded_file is not None:
 
     full_text = extracted_text[:7000]
 
-    # ---------------- SUMMARY ---------------- #
+    # ---------------- SUMMARY PROMPT ---------------- #
 
     summary_prompt = f"""
 You are an advanced AI document analyzer.
 
 Analyze the uploaded document carefully and generate:
 
-1. Detailed summary
-2. Important names
+1. Detailed Summary
+2. Important Names
 3. Organizations
 4. Technologies
-5. Key topics
-6. 5 smart suggested questions
+5. Key Topics
+6. 5 Smart Suggested Questions
 
 Be accurate and concise.
 
-DOCUMENT CONTENT:
+DOCUMENT:
 {full_text}
 """
 
-    with st.spinner("🤖 Generating AI Summary..."):
+    # ---------------- SUMMARY ---------------- #
+
+    with st.spinner("🤖 Generating  Summary..."):
 
         try:
 
@@ -275,21 +291,19 @@ DOCUMENT CONTENT:
                 summary_prompt
             )
 
-            st.markdown(
-                '<div class="ai-box">',
-                unsafe_allow_html=True
-            )
+            st.markdown(f"""
+<div class="ai-box">
 
-            st.subheader("📌 AI Document Summary")
+<h2>
+📌  Document Summary
+</h2>
 
-            st.write(
-                summary_response.content
-            )
+<div class="ai-content">
+{summary_response.content}
+</div>
 
-            st.markdown(
-                '</div>',
-                unsafe_allow_html=True
-            )
+</div>
+""", unsafe_allow_html=True)
 
         except Exception as e:
 
@@ -297,17 +311,17 @@ DOCUMENT CONTENT:
 
     st.markdown("---")
 
-    # ---------------- QUESTION SECTION ---------------- #
+    # ---------------- QUESTION INPUT ---------------- #
 
     question = st.text_input(
         "💬 Ask anything about the document"
     )
 
     ask_button = st.button(
-        "🚀 Generate Answer"
+        "🚀 Generate  Answer"
     )
 
-    # ---------------- ANSWER GENERATION ---------------- #
+    # ---------------- QUESTION ANSWERING ---------------- #
 
     if ask_button:
 
@@ -328,20 +342,14 @@ DOCUMENT CONTENT:
                 "yo"
             ]
 
-            # Greetings
+            # ---------------- GREETING RESPONSE ---------------- #
+
             if question.lower().strip() in greetings:
 
-                st.markdown(
-                    '<div class="ai-box">',
-                    unsafe_allow_html=True
-                )
-
-                st.subheader("🤖 AI Assistant")
-
-                st.write("""
+                greeting_text = """
 Hello 👋
 
-I am your Smart Document Analyzer AI.
+I am your Smart Document Analyzer .
 
 You can ask questions related to the uploaded document.
 
@@ -351,24 +359,35 @@ Examples:
 - What company is mentioned?
 - What technologies are used?
 - Explain the report
-""")
+"""
 
-                st.markdown(
-                    '</div>',
-                    unsafe_allow_html=True
-                )
+                st.markdown(f"""
+<div class="ai-box">
+
+<h2>
+🤖 AI Assistant
+</h2>
+
+<div class="ai-content">
+{greeting_text}
+</div>
+
+</div>
+""", unsafe_allow_html=True)
+
+            # ---------------- NORMAL QUESTIONS ---------------- #
 
             else:
 
-                with st.spinner("🤖 Answer generating..."):
+                with st.spinner("🤖 generating answer..."):
 
-                    # Better Retrieval
+                    # Similarity Search
                     matching_docs = vectorstore.similarity_search(
                         question,
                         k=5
                     )
 
-                    # Retrieved Context
+                    # Retrieved Content
                     retrieved_context = "\n\n".join(
                         [
                             doc.page_content
@@ -376,7 +395,7 @@ Examples:
                         ]
                     )
 
-                    # Hybrid Context
+                    # Combined Context
                     context = f"""
 DOCUMENT CONTENT:
 {full_text}
@@ -408,27 +427,23 @@ QUESTION:
 
                     try:
 
-                        # Generate Response
                         response = llm.invoke(
                             prompt
                         )
 
-                        # Answer Card
-                        st.markdown(
-                            '<div class="ai-box">',
-                            unsafe_allow_html=True
-                        )
+                        st.markdown(f"""
+<div class="ai-box">
 
-                        st.subheader("📌  Answer")
+<h2>
+📌 AI Answer
+</h2>
 
-                        st.write(
-                            response.content
-                        )
+<div class="ai-content">
+{response.content}
+</div>
 
-                        st.markdown(
-                            '</div>',
-                            unsafe_allow_html=True
-                        )
+</div>
+""", unsafe_allow_html=True)
 
                     except Exception as e:
 
