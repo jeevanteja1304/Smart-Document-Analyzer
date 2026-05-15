@@ -9,3 +9,5 @@ pypdf
 sentence-transformers
 torch
 transformers
+python-docx
+pandas
