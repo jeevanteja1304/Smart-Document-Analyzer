@@ -1,9 +1,13 @@
 import streamlit as st
 from dotenv import load_dotenv
 import os
+import pandas as pd
 
-# PDF Loader
+# PDF
 from langchain_community.document_loaders import PyPDFLoader
+
+# DOCX
+from docx import Document
 
 # Text Splitter
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -20,7 +24,8 @@ from langchain_groq import ChatGroq
 # Load environment variables
 load_dotenv()
 
-# Streamlit Config
+# ---------------- PAGE CONFIG ---------------- #
+
 st.set_page_config(
     page_title="Smart Document Analyzer",
     page_icon="📄",
@@ -103,7 +108,7 @@ st.markdown(
 )
 
 st.markdown(
-    '<div class="sub-title">Advanced AI-Powered RAG PDF Assistant</div>',
+    '<div class="sub-title">Advanced AI-Powered Multi-Document RAG Assistant</div>',
     unsafe_allow_html=True
 )
 
@@ -113,7 +118,10 @@ with st.sidebar:
 
     st.title("⚙️ Features")
 
-    st.success("✅ PDF Upload")
+    st.success("✅ PDF Support")
+    st.success("✅ DOCX Support")
+    st.success("✅ TXT Support")
+    st.success("✅ CSV Support")
     st.success("✅ AI Summary")
     st.success("✅ Suggested Questions")
     st.success("✅ Smart Question Answering")
@@ -121,8 +129,8 @@ with st.sidebar:
 # ---------------- FILE UPLOAD ---------------- #
 
 uploaded_file = st.file_uploader(
-    "📂 Upload your PDF",
-    type="pdf"
+    "📂 Upload Document",
+    type=["pdf", "docx", "txt", "csv"]
 )
 
 # ---------------- MAIN APP ---------------- #
@@ -133,16 +141,16 @@ if uploaded_file is not None:
     os.makedirs("data", exist_ok=True)
     os.makedirs("vectorstore", exist_ok=True)
 
-    # Save uploaded PDF
-    pdf_path = os.path.join(
+    # Save uploaded file
+    file_path = os.path.join(
         "data",
         uploaded_file.name
     )
 
-    with open(pdf_path, "wb") as f:
+    with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    st.success("✅ PDF Uploaded Successfully!")
+    st.success("✅ File Uploaded Successfully!")
 
     # File Details
     col1, col2 = st.columns(2)
@@ -159,22 +167,56 @@ if uploaded_file is not None:
             f"{round(uploaded_file.size / 1024, 2)} KB"
         )
 
-    # ---------------- LOAD PDF ---------------- #
+    # ---------------- READ FILE ---------------- #
+
+    extracted_text = ""
 
     with st.spinner("📚 AI is analyzing the document..."):
 
-        loader = PyPDFLoader(pdf_path)
+        file_extension = uploaded_file.name.split(".")[-1].lower()
 
-        documents = loader.load()
+        # PDF
+        if file_extension == "pdf":
 
-        # Better Chunking
+            loader = PyPDFLoader(file_path)
+
+            documents = loader.load()
+
+            extracted_text = "\n".join(
+                [doc.page_content for doc in documents]
+            )
+
+        # DOCX
+        elif file_extension == "docx":
+
+            doc = Document(file_path)
+
+            extracted_text = "\n".join(
+                [para.text for para in doc.paragraphs]
+            )
+
+        # TXT
+        elif file_extension == "txt":
+
+            with open(file_path, "r", encoding="utf-8") as f:
+
+                extracted_text = f.read()
+
+        # CSV
+        elif file_extension == "csv":
+
+            df = pd.read_csv(file_path)
+
+            extracted_text = df.to_string()
+
+        # Split Text
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=1200,
             chunk_overlap=250
         )
 
-        docs = splitter.split_documents(
-            documents
+        docs = splitter.create_documents(
+            [extracted_text]
         )
 
         # Embeddings
@@ -203,35 +245,29 @@ if uploaded_file is not None:
 
     # ---------------- DOCUMENT CONTEXT ---------------- #
 
-    # Optimized Context
-    full_text = "\n".join(
-        [
-            doc.page_content
-            for doc in docs[:12]
-        ]
-    )
+    full_text = extracted_text[:7000]
 
     # ---------------- SUMMARY ---------------- #
 
     summary_prompt = f"""
 You are an advanced AI document analyzer.
 
-Analyze the uploaded PDF carefully and generate:
+Analyze the uploaded document carefully and generate:
 
 1. Detailed summary
 2. Important names
 3. Organizations
 4. Technologies
 5. Key topics
-6. Suggested questions users can ask
+6. 5 smart suggested questions
 
 Be accurate and concise.
 
-PDF Content:
+DOCUMENT CONTENT:
 {full_text}
 """
 
-    with st.spinner("🤖 Generating  Summary..."):
+    with st.spinner("🤖 Generating AI Summary..."):
 
         try:
 
@@ -240,9 +276,7 @@ PDF Content:
             )
 
             st.markdown(
-                """
-                <div class="ai-box">
-                """,
+                '<div class="ai-box">',
                 unsafe_allow_html=True
             )
 
@@ -253,9 +287,7 @@ PDF Content:
             )
 
             st.markdown(
-                """
-                </div>
-                """,
+                '</div>',
                 unsafe_allow_html=True
             )
 
@@ -265,21 +297,20 @@ PDF Content:
 
     st.markdown("---")
 
-    # ---------------- QUESTION INPUT ---------------- #
+    # ---------------- QUESTION SECTION ---------------- #
 
     question = st.text_input(
-        "💬 Ask anything about the PDF"
+        "💬 Ask anything about the document"
     )
 
     ask_button = st.button(
-        "🚀 Generate  Answer"
+        "🚀 Generate Answer"
     )
 
     # ---------------- ANSWER GENERATION ---------------- #
 
     if ask_button:
 
-        # Empty Question
         if not question.strip():
 
             st.warning(
@@ -297,14 +328,11 @@ PDF Content:
                 "yo"
             ]
 
-            # ---------------- GREETING HANDLING ---------------- #
-
+            # Greetings
             if question.lower().strip() in greetings:
 
                 st.markdown(
-                    """
-                    <div class="ai-box">
-                    """,
+                    '<div class="ai-box">',
                     unsafe_allow_html=True
                 )
 
@@ -315,28 +343,24 @@ Hello 👋
 
 I am your Smart Document Analyzer AI.
 
-Please ask questions related to the uploaded PDF.
+You can ask questions related to the uploaded document.
 
 Examples:
 - What is the student name?
-- What company is mentioned?
 - Summarize the document
+- What company is mentioned?
 - What technologies are used?
-- Explain the internship report
+- Explain the report
 """)
 
                 st.markdown(
-                    """
-                    </div>
-                    """,
+                    '</div>',
                     unsafe_allow_html=True
                 )
 
-            # ---------------- QUESTION ANSWERING ---------------- #
-
             else:
 
-                with st.spinner("🤖 AI is generating answer..."):
+                with st.spinner("🤖 Answer generating..."):
 
                     # Better Retrieval
                     matching_docs = vectorstore.similarity_search(
@@ -354,18 +378,18 @@ Examples:
 
                     # Hybrid Context
                     context = f"""
-FULL DOCUMENT CONTEXT:
+DOCUMENT CONTENT:
 {full_text}
 
 RETRIEVED CONTENT:
 {retrieved_context}
 """
 
-                    # AI Prompt
+                    # Prompt
                     prompt = f"""
-You are an accurate AI PDF assistant.
+You are an accurate AI document assistant.
 
-Answer ONLY using the provided PDF content.
+Answer ONLY using the provided document content.
 
 Rules:
 - Return names and details exactly if found.
@@ -373,12 +397,12 @@ Rules:
 - If information exists in the document, return it correctly.
 - Do not hallucinate.
 - If answer is unavailable, say:
-'This information is not available in the PDF.'
+'This information is not available in the document.'
 
-PDF Content:
+DOCUMENT:
 {context}
 
-Question:
+QUESTION:
 {question}
 """
 
@@ -389,11 +413,9 @@ Question:
                             prompt
                         )
 
-                        # AI Answer Card
+                        # Answer Card
                         st.markdown(
-                            """
-                            <div class="ai-box">
-                            """,
+                            '<div class="ai-box">',
                             unsafe_allow_html=True
                         )
 
@@ -404,9 +426,7 @@ Question:
                         )
 
                         st.markdown(
-                            """
-                            </div>
-                            """,
+                            '</div>',
                             unsafe_allow_html=True
                         )
 
